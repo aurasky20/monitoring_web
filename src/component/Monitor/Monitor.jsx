@@ -1,5 +1,4 @@
-// Monitor.jsx - Diperbaiki untuk Menerima Streaming Video
-import React, { useState, useEffect } from "react"; // Hapus useRef
+import React, { useState, useEffect } from "react";
 import { io } from "socket.io-client";
 import "./Monitor.css";
 
@@ -11,8 +10,6 @@ const Monitor = () => {
   const [detectionData, setDetectionData] = useState(null);
   const [logList, setLogList] = useState([]);
   
-  // Hapus fungsi startCamera dan stopCamera karena tidak diperlukan lagi
-
   useEffect(() => {
     // --- Listener untuk menerima frame video ---
     socket.on('video_frame', (data) => {
@@ -37,7 +34,6 @@ const Monitor = () => {
     });
 
     return () => {
-      // Bersihkan semua listener saat komponen unmount
       socket.off("video_frame");
       socket.off("deteksi");
       socket.off("log");
@@ -76,7 +72,6 @@ const Monitor = () => {
         </div>
       </div>
 
-      {/* Bagian Kanan (Feed/Log) tidak berubah */}
       <div className="monitor-right">
         <div className="monitor-right-title">
           <h2>Live Camera Feed</h2>
@@ -97,7 +92,6 @@ const Monitor = () => {
           <h4>Object Detection Log:</h4>
           <ul id="log">
           {logList.length > 0 ? (
-            // --- PERUBAHAN 2: Render dua <span> di dalam <li> ---
             logList.map((log, index) => (
               
               <li key={index} className="log-entry">
