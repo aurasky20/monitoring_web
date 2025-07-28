@@ -1,0 +1,11 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+} 
+body {
+  font-family: 'Poppins', sans-serif;
+  background-color: #f0f0f0; /* Warna latar belakang */
+  color: #333; /* Warna teks */
+  line-height: 1.6; /* Jarak antar baris */
+}
