@@ -1,15 +1,14 @@
 // Monitor.jsx - Enhanced Monitoring Component with Database Integration
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { io } from "socket.io-client";
 import "./Monitor.css";
-
-const socket = io("http://localhost:3000");
 
 const Monitor = () => {
   // Video and detection states
   const [videoFrame, setVideoFrame] = useState("");
   const [detectionData, setDetectionData] = useState(null);
   const [connectionStatus, setConnectionStatus] = useState("Connecting...");
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
   // Database states
   const [detectionHistory, setDetectionHistory] = useState([]);
@@ -19,36 +18,61 @@ const Monitor = () => {
   
   // Live log states
   const [liveLogList, setLiveLogList] = useState([]);
+  
+  // Socket reference to ensure we always have the latest instance
+  const socketRef = useRef(null);
+  const refreshTimeoutRef = useRef(null);
 
-  // Format timestamp for display
-  const formatTime = useCallback((timestamp) => {
-    if (!timestamp) return '';
-    const date = new Date(timestamp);
-    return date.toLocaleString('id-ID', {
-      // year: 'numeric',
-      // month: '2-digit',
-      // day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit'
+  // Initialize socket connection
+  const initializeSocket = useCallback(() => {
+    if (socketRef.current) {
+      socketRef.current.disconnect();
+    }
+
+    const socket = io("http://localhost:3000", {
+      forceNew: true,
+      transports: ['websocket', 'polling'],
+      timeout: 5000,
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
     });
-  }, []);
 
-  useEffect(() => {
+    socketRef.current = socket;
+
     // Connection status handlers
     socket.on('connect', () => {
       console.log('✅ Connected to server');
       setConnectionStatus("Connected");
+      // Request initial data after connection
+      socket.emit('request_latest_data');
     });
 
-    socket.on('disconnect', () => {
-      console.log('❌ Disconnected from server');
+    socket.on('disconnect', (reason) => {
+      console.log('❌ Disconnected from server:', reason);
       setConnectionStatus("Disconnected");
     });
 
     socket.on('connect_error', (error) => {
       console.log('❌ Connection error:', error);
       setConnectionStatus("Connection Error");
+    });
+
+    socket.on('reconnect', (attemptNumber) => {
+      console.log('🔄 Reconnected after', attemptNumber, 'attempts');
+      setConnectionStatus("Connected");
+      // Request fresh data after reconnection
+      socket.emit('request_latest_data');
+    });
+
+    socket.on('reconnect_attempt', (attemptNumber) => {
+      console.log('🔄 Attempting to reconnect...', attemptNumber);
+      setConnectionStatus("Reconnecting...");
+    });
+
+    socket.on('reconnect_failed', () => {
+      console.log('❌ Failed to reconnect');
+      setConnectionStatus("Connection Failed");
     });
 
     // Video frame handler
@@ -93,39 +117,150 @@ const Monitor = () => {
       if (data.stats) {
         setDetectionStats(data.stats);
       }
+      setIsRefreshing(false);
     });
 
     // Request latest data handler
     socket.on('latest_data', (data) => {
+      console.log('📊 Received latest data from database');
       if (data.detections) {
         setDetectionHistory(data.detections);
       }
       if (data.stats) {
         setDetectionStats(data.stats);
       }
+      setIsRefreshing(false);
     });
 
-    // Request initial data on component mount
-    socket.emit('request_latest_data');
+    return socket;
+  }, []);
 
+  // Format timestamp for display
+  const formatTime = useCallback((timestamp) => {
+    if (!timestamp) return '';
+    const date = new Date(timestamp);
+    return date.toLocaleString('id-ID', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
+  }, []);
+
+  useEffect(() => {
+    const socket = initializeSocket();
+    
     // Cleanup function
     return () => {
+      if (refreshTimeoutRef.current) {
+        clearTimeout(refreshTimeoutRef.current);
+      }
       socket.off("connect");
       socket.off("disconnect");
       socket.off("connect_error");
+      socket.off("reconnect");
+      socket.off("reconnect_attempt");
+      socket.off("reconnect_failed");
       socket.off("video_frame");
       socket.off("deteksi");
       socket.off("log");
       socket.off("database_update");
       socket.off("initial_data");
       socket.off("latest_data");
+      socket.disconnect();
     };
   }, []);
 
-  // Manual refresh function
-  const handleRefresh = () => {
-    socket.emit('request_latest_data');
-  };
+  // Enhanced refresh function with better error handling and timeout
+  const handleRefresh = useCallback(() => {
+    if (isRefreshing) {
+      console.log('⚠️ Refresh already in progress, skipping...');
+      return;
+    }
+
+    console.log('🔄 Manual refresh triggered');
+    setIsRefreshing(true);
+
+    // Clear any existing timeout
+    if (refreshTimeoutRef.current) {
+      clearTimeout(refreshTimeoutRef.current);
+    }
+
+    try {
+      // Check if socket is connected
+      if (socketRef.current && socketRef.current.connected) {
+        console.log('📡 Socket connected, requesting latest data...');
+        socketRef.current.emit('request_latest_data');
+        
+        // Set timeout to reset refreshing state if no response
+        refreshTimeoutRef.current = setTimeout(() => {
+          console.log('⚠️ Refresh timeout, resetting state...');
+          setIsRefreshing(false);
+        }, 10000);
+        
+      } else {
+        console.log('🔌 Socket disconnected, attempting to reconnect...');
+        setConnectionStatus("Reconnecting...");
+        
+        // Try to reconnect
+        if (socketRef.current) {
+          socketRef.current.connect();
+        } else {
+          // Reinitialize socket if it doesn't exist
+          initializeSocket();
+        }
+        
+        // Reset refreshing state after attempting reconnection
+        setTimeout(() => {
+          setIsRefreshing(false);
+        }, 3000);
+      }
+    } catch (error) {
+      console.error('❌ Error during refresh:', error);
+      setIsRefreshing(false);
+    }
+  }, [isRefreshing, initializeSocket]);
+
+  // Fallback API refresh function
+  const handleFallbackRefresh = useCallback(async () => {
+    console.log('🌐 Using fallback API refresh...');
+    setIsRefreshing(true);
+    
+    try {
+      // Fetch data directly from API as fallback
+      const [detectionsResponse, statsResponse] = await Promise.all([
+        fetch('http://localhost:3000/api/detections'),
+        fetch('http://localhost:3000/api/stats')
+      ]);
+      
+      if (detectionsResponse.ok && statsResponse.ok) {
+        const detections = await detectionsResponse.json();
+        const stats = await statsResponse.json();
+        
+        setDetectionHistory(detections);
+        setDetectionStats(stats);
+        console.log('✅ Fallback refresh successful');
+      } else {
+        console.error('❌ API requests failed');
+      }
+    } catch (error) {
+      console.error('❌ Fallback refresh failed:', error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, []);
+
+  // Connection health check every 30 seconds
+  useEffect(() => {
+    const healthCheckInterval = setInterval(() => {
+      if (socketRef.current && !socketRef.current.connected) {
+        console.log('🏥 Health check: Socket disconnected, attempting reconnection...');
+        setConnectionStatus("Reconnecting...");
+        socketRef.current.connect();
+      }
+    }, 30000);
+
+    return () => clearInterval(healthCheckInterval);
+  }, []);
 
   return (
     <div className="monitor">
@@ -134,7 +269,7 @@ const Monitor = () => {
         <div className="monitor-left-title">
           <h1>🎥 Real-time Camera Feed</h1>
           <div className="connection-status">
-            <span className={`status-indicator ${connectionStatus.toLowerCase().replace(' ', '-')}`}>
+            <span className={`status-indicator ${connectionStatus.toLowerCase().replace(/[^a-z]/g, '-')}`}>
               ● {connectionStatus}
             </span>
           </div>
@@ -169,36 +304,48 @@ const Monitor = () => {
       <div className="monitor-right">
         <div className="monitor-right-title">
           <h2>📊 Detection Monitoring</h2>
-          <button onClick={handleRefresh} className="refresh-btn">
-            🔄 Refresh Data
-          </button>
+          <div className="refresh-buttons">
+            {/* <button 
+              onClick={handleRefresh} 
+              className={`refresh-btn ${isRefreshing ? 'refreshing' : ''}`}
+              disabled={isRefreshing}
+            >
+              {isRefreshing ? '⏳ Refreshing...' : '🔄 Refresh Data'}
+            </button> */}
+            <button 
+              onClick={handleFallbackRefresh} 
+              className="refresh-btn"
+              disabled={isRefreshing}
+              title="Use API fallback if socket fails"
+            >
+              🌐 API Refresh
+            </button>
+          </div>
         </div>
 
         {/* Current Detection Status */}
         <div className="monitor-right-content">
-        <div className="monitor-right-content-status">
-          <h4>🔴 Live Detection Status:</h4>
-          {detectionData ? (
-            <div className="current-detection">
-              <div className="detection-count">
-                <strong>{detectionData.jumlah}</strong> 
-                <span> bird{detectionData.jumlah !== 1 ? 's' : ''} currently detected</span>
+          <div className="monitor-right-content-status">
+            <h4>🔴 Live Detection Status:</h4>
+            {detectionData ? (
+              <div className="current-detection">
+                <div className="detection-count">
+                  <strong>{detectionData.jumlah}</strong> 
+                  <span> bird{detectionData.jumlah !== 1 ? 's' : ''} currently detected</span>
+                </div>
+                <p className="last-update">Last update: {detectionData.waktu}</p>
               </div>
-              <p className="last-update">Last update: {detectionData.waktu}</p>
-            </div>
-        
-          ) : (
-            <p className="waiting-data">Waiting for detection data...</p>
-          )}
+            ) : (
+              <p className="waiting-data">Waiting for detection data...</p>
+            )}
+          </div>
+          <div className="stat-item">
+            <span className="stat-number">{detectionStats.today_birds} </span>
+            <span className="stat-label">Birds Today</span>
+          </div>
         </div>
-            <div className="stat-item">
-              <span className="stat-number">{detectionStats.today_birds} </span>
-              <span className="stat-label">Birds Today</span>
-            </div>
-        </div>
-        
 
-        {/* Live Detection Log */}
+        {/* Live Detection Log
         <div className="monitor-right-content-log">
           <h4>Live Detection Alerts:</h4>
           <div className="log-container">
@@ -213,7 +360,7 @@ const Monitor = () => {
               <div className="no-logs">No recent detection alerts</div>
             )}
           </div>
-        </div>
+        </div> */}
 
         {/* Database Detection History */}
         <div className="detection-history">
@@ -224,7 +371,7 @@ const Monitor = () => {
                 <div key={detection.id || index} className="history-entry">
                   <div className="history-content">
                     <span className="history-count">
-                      🐦 {detection.birds} bird {detection.birds !== 1 ? 's' : ''}
+                      🐦 {detection.birds} bird{detection.birds !== 1 ? 's' : ''}
                     </span>
                     <span className="history-time">
                       {formatTime(detection.time)}
@@ -237,13 +384,6 @@ const Monitor = () => {
             )}
           </div>
         </div>
-
-        {/* Detection Statistics */}
-        <div className="detection-stats">
-          <h4>Detection Statistics:</h4>
-          
-        </div>
-
       </div>
     </div>
   );

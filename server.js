@@ -37,7 +37,7 @@ async function initDatabase() {
     dbPool = mysql.createPool({
       ...DB_CONFIG,
       waitForConnections: true,
-      connectionLimit: 60,
+      connectionLimit: 1,
       queueLimit: 0
     });
     
