@@ -62,7 +62,7 @@ const Navbar = () => {
             </a>
           </li>
           <li className="navbar-item">
-            <div className="nav-connect">Login</div>
+            <div className="nav-connect">Logout</div>
           </li>
         </ul>
       </div>
