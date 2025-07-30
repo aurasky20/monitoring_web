@@ -115,18 +115,18 @@ def detect_and_stream():
         realtime_data = {"jumlah": bird_count, "waktu": now_str}
         
         # Send real-time detection data
+        # Kirim data deteksi real-time
         socketio.emit("deteksi", realtime_data)
 
-        # Save to database and send log if objects detected
+        # Simpan ke database jika ada objek terdeteksi (setiap 60 detik)
         now_epoch = time.time()
-        if bird_count > 0 and now_epoch - last_logged_time >= 60:  # Log every 10 seconds when objects detected
-            # Save to database
+        if bird_count > 0 and now_epoch - last_logged_time >= 60:
             if save_detection_to_db(bird_count):
-                # Send log notification
                 socketio.emit("log", realtime_data)
                 last_logged_time = now_epoch
 
-        socketio.sleep(0.05)  # ~20 FPS
+        # Sesuaikan nilai ini untuk FPS yang berbeda. 0.033 untuk ~30 FPS
+        socketio.sleep(1) 
 
 @socketio.on('connect')
 def connect():

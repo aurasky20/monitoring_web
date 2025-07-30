@@ -96,6 +96,8 @@ const Monitor = () => {
       };
       
       setLiveLogList((prevLogs) => [logEntry, ...prevLogs.slice(0, 19)]); // Keep only last 20 entries
+
+      setDetectionData(data); 
     });
 
     // Database update handler

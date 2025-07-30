@@ -83,7 +83,7 @@
     color: #1E141E;
     font-family: Outfit;
     font-size: 16px;
-    border: 2px solid transparent;
+    border: 2px solid #e0e0e0;
 }
 .contact-right input:focus, .contact-right textarea:focus{
     outline: none;
