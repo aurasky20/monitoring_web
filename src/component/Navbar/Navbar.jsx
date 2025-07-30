@@ -45,9 +45,9 @@ const Navbar = () => {
           </li>
           <li className="navbar-item">
             <a
-              href="#about"
-              className={menu === "about" ? "active" : ""}
-              onClick={() => setMenu("about")}
+              href="#rules"
+              className={menu === "rules" ? "active" : ""}
+              onClick={() => setMenu("rules")}
             >
                 Rules
             </a>

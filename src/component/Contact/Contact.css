@@ -1,0 +1,112 @@
+.contact{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    padding: 40px 80px;
+    cursor: default;
+    background-color: #F5F5F5;
+    
+}
+.contact-title{
+    font-size: 24px;
+    font-weight: 700;
+    color: #3C2724;
+    margin-bottom: 12px;
+}
+.contact-section{
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 200px; 
+}
+.contact-left{
+    display: flex;
+    flex-direction: column;
+}
+.contact-left h1{
+    font-size: 28px;
+    font-weight: 700;
+    background: linear-gradient(267deg, #1B896E 80%, #00E4E8 100%) ;
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+.contact-left a{
+    text-decoration: none;
+    color: #1E141E;
+}
+.contact-left p{
+    font-size: 16px;
+    font-weight: 400;
+    color: #1E141E;
+    max-width: 500px;
+    line-height: 32px;
+    margin-bottom: 100px;
+}
+.contact-details{
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    color: #1E141E;
+    margin-top: 20px;
+}
+.contact-detail{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.contact-detail img{
+    width: 28px;
+}
+.contact-detail p{
+    font-size: 16px;
+}
+.contact-right{
+    display: flex;
+    flex-direction: column;
+    align-items: start;
+    gap: 8px;
+}
+.contact-right label{
+    font-size: 16px;
+    font-weight: 600;
+    color: #1E141E;
+    margin-top: 8px;
+}
+.contact-right input, .contact-right textarea{
+    min-width: 500px;
+    padding: 12px;
+    border-radius: 8px;
+    border: none;
+    background-color: #ffffff;
+    color: #1E141E;
+    font-family: Outfit;
+    font-size: 16px;
+    border: 2px solid transparent;
+}
+.contact-right input:focus, .contact-right textarea:focus{
+    outline: none;
+    border: 2px solid #00E4E8;
+}
+.contact-right input:hover, .contact-right textarea:hover{
+    border: 2px solid #00E4E8;
+}
+.contact-right button{
+    align-items: center;
+    padding: 12px 24px;
+    width: 100%;
+    border-radius: 8px;
+    border: none;
+    background: linear-gradient(267deg, #1B896E, #00E4E8);
+    color: #ffffff;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.3s;
+    margin-top: 20px;
+}
+.contact-right button:hover{
+    transform: scale(1.05);
+    background: linear-gradient(267deg, #00E4E8, #00E4E8);
+}

@@ -13,7 +13,7 @@ section {
   align-items: center;
   justify-content: space-between;
   /* max-width: 1200px; Batas lebar maksimum, sesuaikan jika perlu */
-  padding: 20px 100px; /* Padding untuk jarak ke tepi di layar kecil */
+  padding: 8px 100px; /* Padding untuk jarak ke tepi di layar kecil */
   width: 100%;
   color: white;
 }
@@ -22,7 +22,7 @@ section {
     align-items: center;
     list-style: none;
     gap: 40px;
-    font-size: 16px;
+    font-size: 14px;
 }
 .navbar-menu a{
     color: white;
@@ -34,19 +34,19 @@ section {
     color: #00ffe5;
     transition: 0.3s;
     text-decoration: underline;
-    font-size: 18px;
+    font-size: 16px;
 }
 .navbar-menu a.active {
   color: #00ffe5; /* Warna tosca */
   font-weight: 500; /* Bold */
   text-decoration: underline; /* Garis bawah */
-  font-size: 18px; /* Ukuran font lebih besar */
+  font-size: 16px; /* Ukuran font lebih besar */
 }
 .nav-connect{
-    padding: 12px 20px;
-    border-radius: 12px;
+    padding: 6px 20px;
+    border-radius: 8px;
     background: linear-gradient(267deg, #1B896E, #00E4E8);
-    font-size: 16px;
+    font-size: 14px;
     color: white;
     cursor: pointer;
     transition: 0.5s;
@@ -56,14 +56,3 @@ section {
     background: linear-gradient(267deg, #00E4E8, #00E4E8);
     color: white;
 }
-/* .active-indicator{
-    position: absolute;
-    bottom: -5px;
-    left: 0;
-    width: 100%;
-    height: 2px;
-    background-image: url("../../assets/icons/underline.svg");
-    background-repeat: no-repeat;
-    background-size: contain;
-    transition: left 0.3s ease-in-out;
-} */

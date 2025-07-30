@@ -371,7 +371,7 @@ const Monitor = () => {
                 <div key={detection.id || index} className="history-entry">
                   <div className="history-content">
                     <span className="history-count">
-                      🐦 {detection.birds} bird{detection.birds !== 1 ? 's' : ''}
+                      🐦 {detection.birds} bird{detection.birds !== 1 ? 's' : ''} detected
                     </span>
                     <span className="history-time">
                       {formatTime(detection.time)}
