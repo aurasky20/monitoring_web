@@ -120,7 +120,7 @@ def detect_and_stream():
 
         # Simpan ke database jika ada objek terdeteksi (setiap 60 detik)
         now_epoch = time.time()
-        if bird_count > 0 and now_epoch - last_logged_time >= 60:
+        if bird_count > 0 and now_epoch - last_logged_time >= 300:
             if save_detection_to_db(bird_count):
                 socketio.emit("log", realtime_data)
                 last_logged_time = now_epoch
@@ -139,11 +139,9 @@ def disconnect():
 if __name__ == "__main__":
     # Initialize database
     init_database()
-    
-    # Start detection thread
-    detection_thread = threading.Thread(target=detect_and_stream)
-    detection_thread.daemon = True
-    detection_thread.start()
-    
+
+    # Ganti cara memulai thread dengan metode dari Socket.IO
+    socketio.start_background_task(target=detect_and_stream)
+
     print("🚀 Starting Flask detection server on port 5000...")
-    socketio.run(app, host="0.0.0.0", port=5000, debug=False)
+    socketio.run(app, host="0.0.0.0", port=5000)
