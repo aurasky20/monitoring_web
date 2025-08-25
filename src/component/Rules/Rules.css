@@ -1,0 +1,262 @@
+/* ==== RULES MAIN CONTAINER ==== */
+.rules-container {
+  /* max-width: 1200px; */
+  /* margin: 0 auto; */
+  padding: 20px;
+  min-height: 100vh;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+}
+
+/* ==== HEADER SECTION ==== */
+.rules-header {
+  text-align: center;
+  margin-bottom: 40px;
+  padding: 24px;
+  border-radius: 12px;
+}
+
+.rules-header h1 {
+  font-size: 28px;
+  color: #1E141E;
+  margin: 0 0 12px 0;
+  font-weight: 700;
+}
+
+.rules-subtitle {
+  font-size: 16px;
+  color: #666;
+  margin: 0;
+  font-weight: 500;
+}
+
+/* ==== CONTENT SECTION ==== */
+.rules-content {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+  gap: 24px;
+  margin-bottom: 40px;
+  padding: 0 10vh;
+}
+
+/* ==== INDIVIDUAL RULE SECTIONS ==== */
+.rules-section {
+  background-color: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #e0e0e0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.section-header {
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #00E4E8, #1B896E);
+  color: white;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.section-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+/* ==== RULE ITEMS ==== */
+.rules-list {
+  padding: 24px;
+}
+
+.rule-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid #f0f0f0;
+  transition: background-color 0.2s ease;
+}
+
+.rule-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.rule-item:hover {
+  background-color: #f8f9fa;
+  margin: 0 -24px;
+  padding-left: 24px;
+  padding-right: 24px;
+  border-radius: 8px;
+}
+
+.rule-number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 32px;
+  background-color: #1B896E;
+  color: white;
+  border-radius: 50%;
+  font-weight: 700;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.rule-text {
+  color: #1E141E;
+  line-height: 1.6;
+  font-size: 14px;
+}
+
+.rule-text strong {
+  color: #1B896E;
+  font-weight: 600;
+}
+
+/* ==== FOOTER SECTION ==== */
+.rules-footer {
+  background-color: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #e0e0e0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  padding: 24px;
+}
+
+.status-legend {
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.status-legend h4 {
+  margin: 0 0 16px 0;
+  color: #1E141E;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.legend-items {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 12px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+}
+
+.status-dot {
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.status-dot.connected {
+  color: #1B896E;
+}
+
+.status-dot.connecting {
+  color: #856404;
+}
+
+.status-dot.disconnected {
+  color: #721c24;
+}
+
+.legend-item span:last-child {
+  font-size: 14px;
+  color: #1E141E;
+  font-weight: 500;
+}
+
+/* ==== EMERGENCY CONTACT ==== */
+.emergency-contact {
+  text-align: center;
+}
+
+.emergency-contact p {
+  margin: 8px 0;
+  color: #1E141E;
+  font-size: 14px;
+}
+
+.emergency-contact p:first-child {
+  font-weight: 600;
+  color: #721c24;
+}
+
+.last-updated {
+  font-size: 12px !important;
+  color: #666 !important;
+  font-style: italic;
+  margin-top: 16px !important;
+}
+
+/* ==== RESPONSIVE DESIGN ==== */
+@media (max-width: 1024px) {
+  .rules-content {
+    grid-template-columns: 1fr;
+  }
+  
+  .legend-items {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .rules-container {
+    padding: 12px;
+  }
+  
+  .rules-header {
+    padding: 16px;
+  }
+  
+  .rules-header h1 {
+    font-size: 24px;
+  }
+  
+  .section-header {
+    padding: 16px 20px;
+  }
+  
+  .rules-list {
+    padding: 20px;
+  }
+  
+  .rule-item {
+    flex-direction: column;
+    text-align: center;
+    gap: 12px;
+  }
+  
+  .rule-number {
+    align-self: center;
+  }
+  
+  .rules-footer {
+    padding: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .rules-header h1 {
+    font-size: 20px;
+  }
+  
+  .rules-subtitle {
+    font-size: 14px;
+  }
+  
+  .section-header h3 {
+    font-size: 16px;
+  }
+  
+  .rule-text {
+    font-size: 13px;
+  }
+}

@@ -1,4 +1,4 @@
-// Monitor.jsx - Enhanced Monitoring Component with Database Integration
+// Monitor.jsx - Enhanced Monitoring Component with Date Picker
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { io } from "socket.io-client";
 import "./Monitor.css";
@@ -16,12 +16,23 @@ const Monitor = () => {
     today_birds: 0
   });
   
+  // Date picker states
+  const [selectedDate, setSelectedDate] = useState('today');
+  const [availableDates, setAvailableDates] = useState([]);
+  const [isLoadingDates, setIsLoadingDates] = useState(false);
+  
   // Live log states
   const [liveLogList, setLiveLogList] = useState([]);
   
-  // Socket reference to ensure we always have the latest instance
+  // Socket reference
   const socketRef = useRef(null);
   const refreshTimeoutRef = useRef(null);
+
+  // Get today's date in YYYY-MM-DD format
+  const getTodayDate = () => {
+    const today = new Date();
+    return today.toISOString().split('T')[0];
+  };
 
   // Initialize socket connection
   const initializeSocket = useCallback(() => {
@@ -45,7 +56,13 @@ const Monitor = () => {
       console.log('✅ Connected to server');
       setConnectionStatus("Connected");
       // Request initial data after connection
-      socket.emit('request_latest_data');
+      if (selectedDate === 'today') {
+        socket.emit('request_latest_data');
+      } else {
+        socket.emit('request_date_data', { date: selectedDate });
+      }
+      // Load available dates
+      loadAvailableDates();
     });
 
     socket.on('disconnect', (reason) => {
@@ -61,8 +78,11 @@ const Monitor = () => {
     socket.on('reconnect', (attemptNumber) => {
       console.log('🔄 Reconnected after', attemptNumber, 'attempts');
       setConnectionStatus("Connected");
-      // Request fresh data after reconnection
-      socket.emit('request_latest_data');
+      if (selectedDate === 'today') {
+        socket.emit('request_latest_data');
+      } else {
+        socket.emit('request_date_data', { date: selectedDate });
+      }
     });
 
     socket.on('reconnect_attempt', (attemptNumber) => {
@@ -95,18 +115,19 @@ const Monitor = () => {
         timestamp: new Date().toISOString()
       };
       
-      setLiveLogList((prevLogs) => [logEntry, ...prevLogs.slice(0, 19)]); // Keep only last 20 entries
-
+      setLiveLogList((prevLogs) => [logEntry, ...prevLogs.slice(0, 19)]);
       setDetectionData(data); 
     });
 
     // Database update handler
     socket.on('database_update', (data) => {
-      if (data.detections) {
-        setDetectionHistory(data.detections);
-      }
-      if (data.stats) {
-        setDetectionStats(data.stats);
+      if (selectedDate === 'today') {
+        if (data.detections) {
+          setDetectionHistory(data.detections);
+        }
+        if (data.stats) {
+          setDetectionStats(data.stats);
+        }
       }
     });
 
@@ -134,7 +155,88 @@ const Monitor = () => {
       setIsRefreshing(false);
     });
 
+    // Date-specific data handler
+    socket.on('date_data', (data) => {
+      console.log('📊 Received date-specific data:', data.requestedDate);
+      if (data.detections) {
+        setDetectionHistory(data.detections);
+      }
+      if (data.stats) {
+        setDetectionStats(data.stats);
+      }
+      setIsRefreshing(false);
+    });
+
     return socket;
+  }, [selectedDate]);
+
+  // Load available dates
+  const loadAvailableDates = useCallback(async () => {
+    setIsLoadingDates(true);
+    try {
+      const response = await fetch('http://localhost:3000/api/available-dates');
+      if (response.ok) {
+        const dates = await response.json();
+        setAvailableDates(dates);
+      }
+    } catch (error) {
+      console.error('❌ Error loading available dates:', error);
+    } finally {
+      setIsLoadingDates(false);
+    }
+  }, []);
+
+  // Handle date selection
+  const handleDateChange = useCallback((date) => {
+    console.log('📅 Date changed to:', date);
+    setSelectedDate(date);
+    setIsRefreshing(true);
+
+    if (socketRef.current && socketRef.current.connected) {
+      if (date === 'today') {
+        socketRef.current.emit('request_latest_data');
+      } else {
+        socketRef.current.emit('request_date_data', { date: date });
+      }
+    } else {
+      // Fallback to API if socket not connected
+      handleAPIRefreshForDate(date);
+    }
+  }, []);
+
+  // API refresh for specific date
+  const handleAPIRefreshForDate = useCallback(async (date) => {
+    console.log('🌐 API refresh for date:', date);
+    setIsRefreshing(true);
+    
+    try {
+      const url = date === 'today' 
+        ? 'http://localhost:3000/api/detections'
+        : `http://localhost:3000/api/detections/${date}`;
+        
+      const [detectionsResponse, statsResponse] = await Promise.all([
+        fetch(url),
+        fetch('http://localhost:3000/api/stats')
+      ]);
+      
+      if (detectionsResponse.ok && statsResponse.ok) {
+        const detectionsData = await detectionsResponse.json();
+        const stats = await statsResponse.json();
+        
+        // Handle the new API response format
+        const detections = detectionsData.detections || detectionsData;
+        
+        setDetectionHistory(detections);
+        setDetectionStats(stats);
+        console.log('✅ API refresh successful for date:', date);
+      } else {
+        console.error('❌ API requests failed');
+      }
+    } catch (error) {
+      console.error('❌ API refresh failed:', error);
+    } finally {
+      setIsRefreshing(false);
+    }
   }, []);
 
   // Format timestamp for display
@@ -145,6 +247,17 @@ const Monitor = () => {
       hour: '2-digit',
       minute: '2-digit',
       second: '2-digit'
+    });
+  }, []);
+
+  // Format date for display
+  const formatDate = useCallback((dateStr) => {
+    if (dateStr === 'today') return 'Today';
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('id-ID', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
     });
   }, []);
 
@@ -168,103 +281,29 @@ const Monitor = () => {
       socket.off("database_update");
       socket.off("initial_data");
       socket.off("latest_data");
+      socket.off("date_data");
       socket.disconnect();
     };
   }, []);
 
-  // Enhanced refresh function with better error handling and timeout
+  // Enhanced refresh function
   const handleRefresh = useCallback(() => {
     if (isRefreshing) {
       console.log('⚠️ Refresh already in progress, skipping...');
       return;
     }
 
-    console.log('🔄 Manual refresh triggered');
-    setIsRefreshing(true);
-
-    // Clear any existing timeout
-    if (refreshTimeoutRef.current) {
-      clearTimeout(refreshTimeoutRef.current);
-    }
-
-    try {
-      // Check if socket is connected
-      if (socketRef.current && socketRef.current.connected) {
-        console.log('📡 Socket connected, requesting latest data...');
-        socketRef.current.emit('request_latest_data');
-        
-        // Set timeout to reset refreshing state if no response
-        refreshTimeoutRef.current = setTimeout(() => {
-          console.log('⚠️ Refresh timeout, resetting state...');
-          setIsRefreshing(false);
-        }, 10000);
-        
-      } else {
-        console.log('🔌 Socket disconnected, attempting to reconnect...');
-        setConnectionStatus("Reconnecting...");
-        
-        // Try to reconnect
-        if (socketRef.current) {
-          socketRef.current.connect();
-        } else {
-          // Reinitialize socket if it doesn't exist
-          initializeSocket();
-        }
-        
-        // Reset refreshing state after attempting reconnection
-        setTimeout(() => {
-          setIsRefreshing(false);
-        }, 3000);
-      }
-    } catch (error) {
-      console.error('❌ Error during refresh:', error);
-      setIsRefreshing(false);
-    }
-  }, [isRefreshing, initializeSocket]);
+    console.log('🔄 Manual refresh triggered for:', selectedDate);
+    handleDateChange(selectedDate);
+  }, [isRefreshing, selectedDate, handleDateChange]);
 
   // Fallback API refresh function
   const handleFallbackRefresh = useCallback(async () => {
-    console.log('🌐 Using fallback API refresh...');
-    setIsRefreshing(true);
-    
-    try {
-      // Fetch data directly from API as fallback
-      const [detectionsResponse, statsResponse] = await Promise.all([
-        fetch('http://localhost:3000/api/detections'),
-        fetch('http://localhost:3000/api/stats')
-      ]);
-      
-      if (detectionsResponse.ok && statsResponse.ok) {
-        const detections = await detectionsResponse.json();
-        const stats = await statsResponse.json();
-        
-        setDetectionHistory(detections);
-        setDetectionStats(stats);
-        console.log('✅ Fallback refresh successful');
-      } else {
-        console.error('❌ API requests failed');
-      }
-    } catch (error) {
-      console.error('❌ Fallback refresh failed:', error);
-    } finally {
-      setIsRefreshing(false);
-    }
-  }, []);
-
-  // Connection health check every 30 seconds
-  useEffect(() => {
-    const healthCheckInterval = setInterval(() => {
-      if (socketRef.current && !socketRef.current.connected) {
-        console.log('🏥 Health check: Socket disconnected, attempting reconnection...');
-        setConnectionStatus("Reconnecting...");
-        socketRef.current.connect();
-      }
-    }, 30000);
-
-    return () => clearInterval(healthCheckInterval);
-  }, []);
+    await handleAPIRefreshForDate(selectedDate);
+  }, [selectedDate, handleAPIRefreshForDate]);
 
   return (
+    <section id="home"> 
     <div className="monitor">
       {/* Left Side - Camera Feed */}
       <div className="monitor-left">
@@ -309,10 +348,10 @@ const Monitor = () => {
           <div className="refresh-buttons">
             {/* <button 
               onClick={handleRefresh} 
-              className={`refresh-btn ${isRefreshing ? 'refreshing' : ''}`}
+              className="refresh-btn"
               disabled={isRefreshing}
             >
-              {isRefreshing ? '⏳ Refreshing...' : '🔄 Refresh Data'}
+              {isRefreshing ? '⏳' : '🔄'} Refresh
             </button> */}
             <button 
               onClick={handleFallbackRefresh} 
@@ -323,6 +362,28 @@ const Monitor = () => {
               🌐 API Refresh
             </button>
           </div>
+        </div>
+
+        {/* Date Picker */}
+        <div className="date-picker-section">
+          <label htmlFor="date-select">📅 Select Date:</label>
+          <select 
+            id="date-select"
+            value={selectedDate} 
+            onChange={(e) => handleDateChange(e.target.value)}
+            disabled={isLoadingDates}
+            className="date-select"
+          >
+            <option value="today">Today ({getTodayDate()})</option>
+            {availableDates.map((date) => (
+              <option key={date} value={date}>
+                {formatDate(date)} ({date})
+              </option>
+            ))}
+          </select>
+          <span className="selected-date-info">
+            Showing data for: <strong>{formatDate(selectedDate)}</strong>
+          </span>
         </div>
 
         {/* Current Detection Status */}
@@ -347,28 +408,16 @@ const Monitor = () => {
           </div>
         </div>
 
-        {/* Live Detection Log
-        <div className="monitor-right-content-log">
-          <h4>Live Detection Alerts:</h4>
-          <div className="log-container">
-            {liveLogList.length > 0 ? (
-              liveLogList.map((log, index) => (
-                <div key={index} className="log-entry live-log">
-                  <span className="log-text">{log.text}</span>
-                  <span className="log-time">{log.time}</span>
-                </div>
-              ))
-            ) : (
-              <div className="no-logs">No recent detection alerts</div>
-            )}
-          </div>
-        </div> */}
-
         {/* Database Detection History */}
         <div className="detection-history">
-          <h4>Detection History (Database):</h4>
+          <h4>Detection History ({formatDate(selectedDate)}):</h4>
           <div className="history-container">
-            {detectionHistory.length > 0 ? (
+            {isRefreshing ? (
+              <div className="loading-history">
+                <div className="loading-spinner"></div>
+                <span>Loading detection history...</span>
+              </div>
+            ) : detectionHistory.length > 0 ? (
               detectionHistory.map((detection, index) => (
                 <div key={detection.id || index} className="history-entry">
                   <div className="history-content">
@@ -382,12 +431,15 @@ const Monitor = () => {
                 </div>
               ))
             ) : (
-              <div className="no-history">No detection records found in database</div>
+              <div className="no-history">
+                No detection records found for {formatDate(selectedDate)}
+              </div>
             )}
           </div>
         </div>
       </div>
     </div>
+    </section>
   );
 };
 

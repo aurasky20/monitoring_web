@@ -12,8 +12,8 @@ const PYTHON_SERVER_URL = "http://localhost:5000";
 // Database configuration
 const DB_CONFIG = {
   host: 'localhost',
-  user: 'root',        // Sesuaikan dengan username database Anda
-  password: '',        // Sesuaikan dengan password database Anda
+  user: 'root',
+  password: '',
   database: 'monitoring'
 };
 
@@ -47,16 +47,30 @@ async function initDatabase() {
   }
 }
 
-// Function to get real-time data from database
-async function getLatestDetections(limit = 50) {
+// Function to get today's detections only
+async function getTodaysDetections(limit = 50) {
   try {
     const [rows] = await dbPool.execute(
-      'SELECT * FROM log_detection ORDER BY time DESC LIMIT ?',
+      'SELECT * FROM log_detection WHERE DATE(time) = CURDATE() ORDER BY time DESC LIMIT ?',
       [limit]
     );
     return rows;
   } catch (error) {
-    console.error('❌ Error fetching detection data:', error);
+    console.error('❌ Error fetching today\'s detection data:', error);
+    return [];
+  }
+}
+
+// Function to get detections by specific date
+async function getDetectionsByDate(date, limit = 50) {
+  try {
+    const [rows] = await dbPool.execute(
+      'SELECT * FROM log_detection WHERE DATE(time) = ? ORDER BY time DESC LIMIT ?',
+      [date, limit]
+    );
+    return rows;
+  } catch (error) {
+    console.error('❌ Error fetching detection data for date:', date, error);
     return [];
   }
 }
@@ -93,31 +107,48 @@ async function getDetectionStats() {
 io.on('connection', async (socket) => {
   console.log('✅ React client connected:', socket.id);
   
-  // Send initial data from database
+  // Send initial data from database (today's data only)
   try {
-    const latestDetections = await getLatestDetections();
+    const todaysDetections = await getTodaysDetections();
     const stats = await getDetectionStats();
     
     socket.emit('initial_data', {
-      detections: latestDetections,
+      detections: todaysDetections,
       stats: stats
     });
   } catch (error) {
     console.error('❌ Error sending initial data:', error);
   }
   
-  // Handle request for latest data
+  // Handle request for latest data (today's data only)
   socket.on('request_latest_data', async () => {
     try {
-      const latestDetections = await getLatestDetections();
+      const todaysDetections = await getTodaysDetections();
       const stats = await getDetectionStats();
       
       socket.emit('latest_data', {
-        detections: latestDetections,
+        detections: todaysDetections,
         stats: stats
       });
     } catch (error) {
       console.error('❌ Error sending latest data:', error);
+    }
+  });
+
+  // Handle request for specific date data
+  socket.on('request_date_data', async (data) => {
+    try {
+      const { date, limit } = data;
+      const detections = await getDetectionsByDate(date, limit || 50);
+      const stats = await getDetectionStats();
+      
+      socket.emit('date_data', {
+        detections: detections,
+        stats: stats,
+        requestedDate: date
+      });
+    } catch (error) {
+      console.error('❌ Error sending date data:', error);
     }
   });
   
@@ -127,11 +158,39 @@ io.on('connection', async (socket) => {
 });
 
 // REST API endpoints
+// Original endpoint for today's detections only
 app.get('/api/detections', async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 50;
-    const detections = await getLatestDetections(limit);
+    const detections = await getTodaysDetections(limit);
     res.json(detections);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch detections' });
+  }
+});
+
+// New endpoint with optional date parameter
+app.get('/api/detections/:date?', async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 50;
+    const date = req.params.date; // Format: YYYY-MM-DD
+    
+    let detections;
+    if (date) {
+      // Validate date format
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        return res.status(400).json({ error: 'Invalid date format. Use YYYY-MM-DD' });
+      }
+      detections = await getDetectionsByDate(date, limit);
+    } else {
+      detections = await getTodaysDetections(limit);
+    }
+    
+    res.json({
+      date: date || 'today',
+      count: detections.length,
+      detections: detections
+    });
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch detections' });
   }
@@ -143,6 +202,18 @@ app.get('/api/stats', async (req, res) => {
     res.json(stats);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch statistics' });
+  }
+});
+
+// Additional endpoint to get available dates
+app.get('/api/available-dates', async (req, res) => {
+  try {
+    const [rows] = await dbPool.execute(
+      'SELECT DISTINCT DATE(time) as date FROM log_detection ORDER BY date DESC LIMIT 30'
+    );
+    res.json(rows.map(row => row.date));
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch available dates' });
   }
 });
 
@@ -167,13 +238,13 @@ pythonSocket.on('log', async (data) => {
   // Send log event
   io.emit('log', data);
   
-  // Send updated data from database
+  // Send updated data from database (today's data only)
   try {
-    const latestDetections = await getLatestDetections();
+    const todaysDetections = await getTodaysDetections();
     const stats = await getDetectionStats();
     
     io.emit('database_update', {
-      detections: latestDetections,
+      detections: todaysDetections,
       stats: stats
     });
   } catch (error) {

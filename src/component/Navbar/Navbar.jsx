@@ -17,8 +17,8 @@ const Navbar = () => {
       },
       {
         root: null,
-        rootMargin: "0px",
-        threshold: 0.6, // Bagian harus 60% terlihat agar dianggap aktif
+  rootMargin: "-80px 0px 0px 0px", // Offset untuk navbar height
+  threshold: 0.3,
       }
     );
 
