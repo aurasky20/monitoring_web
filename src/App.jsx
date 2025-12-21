@@ -10,7 +10,7 @@ function App() {
     <>
       <Navbar />
       <Monitor />
-      <Rules />
+      {/* <Rules /> */}
       <Contact />
     </>
   )

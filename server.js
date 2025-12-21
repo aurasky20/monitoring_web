@@ -48,52 +48,81 @@ async function initDatabase() {
 }
 
 // Function to get today's detections only
-async function getTodaysDetections(limit = 50) {
+async function getTodaysDetections() {
   try {
+    const today = new Date()
+      .toLocaleDateString('id-ID')
+      .split('/')
+      .reverse()
+      .join('-'); // DD-MM-YYYY
+
     const [rows] = await dbPool.execute(
-      'SELECT * FROM log_detection WHERE DATE(time) = CURDATE() ORDER BY time DESC LIMIT ?',
-      [limit]
+      `SELECT id, jumlah_burung, lama_terdeteksi, waktu, tanggal
+       FROM log_detection
+       WHERE tanggal = ?
+       ORDER BY waktu DESC`,
+      [today]
     );
+
     return rows;
   } catch (error) {
-    console.error('❌ Error fetching today\'s detection data:', error);
+    console.error('❌ Error fetching today detections:', error);
     return [];
   }
 }
 
+
 // Function to get detections by specific date
-async function getDetectionsByDate(date, limit = 50) {
+async function getDetectionsByDate(date) {
   try {
     const [rows] = await dbPool.execute(
-      'SELECT * FROM log_detection WHERE DATE(time) = ? ORDER BY time DESC LIMIT ?',
-      [date, limit]
+      `SELECT id, jumlah_burung, lama_terdeteksi, waktu, tanggal
+       FROM log_detection
+       WHERE tanggal = ?
+       ORDER BY waktu DESC`,
+      [date]
     );
     return rows;
   } catch (error) {
-    console.error('❌ Error fetching detection data for date:', date, error);
+    console.error('❌ Error fetching by date:', error);
     return [];
   }
 }
+
 
 // Function to get detection statistics
 async function getDetectionStats() {
   try {
+    const today = new Date()
+      .toLocaleDateString('id-ID')
+      .split('/')
+      .reverse()
+      .join('-');
+
     const [totalRows] = await dbPool.execute(
-      'SELECT COUNT(*) as total, SUM(birds) as total_birds FROM log_detection'
+      `SELECT 
+        COUNT(*) AS total_detections,
+        SUM(jumlah_burung) AS total_birds
+       FROM log_detection`
     );
-    
+
     const [todayRows] = await dbPool.execute(
-      'SELECT COUNT(*) as today_detections, SUM(birds) as today_birds FROM log_detection WHERE DATE(time) = CURDATE()'
+      `SELECT 
+        COUNT(*) AS today_detections,
+        SUM(jumlah_burung) AS today_birds
+       FROM log_detection
+       WHERE tanggal = ?`,
+      [today]
     );
-    
+
     return {
-      total_detections: totalRows[0].total,
+      total_detections: totalRows[0].total_detections,
       total_birds: totalRows[0].total_birds || 0,
       today_detections: todayRows[0].today_detections,
       today_birds: todayRows[0].today_birds || 0
     };
   } catch (error) {
-    console.error('❌ Error fetching detection stats:', error);
+    console.error('❌ Stats error:', error);
     return {
       total_detections: 0,
       total_birds: 0,
@@ -102,6 +131,7 @@ async function getDetectionStats() {
     };
   }
 }
+
 
 // Socket.IO connection handling
 io.on('connection', async (socket) => {
@@ -138,8 +168,8 @@ io.on('connection', async (socket) => {
   // Handle request for specific date data
   socket.on('request_date_data', async (data) => {
     try {
-      const { date, limit } = data;
-      const detections = await getDetectionsByDate(date, limit || 50);
+      const { date } = data;
+      const detections = await getDetectionsByDate(date);
       const stats = await getDetectionStats();
       
       socket.emit('date_data', {
@@ -161,8 +191,7 @@ io.on('connection', async (socket) => {
 // Original endpoint for today's detections only
 app.get('/api/detections', async (req, res) => {
   try {
-    const limit = parseInt(req.query.limit) || 50;
-    const detections = await getTodaysDetections(limit);
+    const detections = await getTodaysDetections();
     res.json(detections);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch detections' });
@@ -170,31 +199,28 @@ app.get('/api/detections', async (req, res) => {
 });
 
 // New endpoint with optional date parameter
-app.get('/api/detections/:date?', async (req, res) => {
+app.get('/api/detections/:date', async (req, res) => {
   try {
-    const limit = parseInt(req.query.limit) || 50;
-    const date = req.params.date; // Format: YYYY-MM-DD
-    
-    let detections;
-    if (date) {
-      // Validate date format
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-        return res.status(400).json({ error: 'Invalid date format. Use YYYY-MM-DD' });
-      }
-      detections = await getDetectionsByDate(date, limit);
-    } else {
-      detections = await getTodaysDetections(limit);
+    const date = req.params.date; // DD-MM-YYYY
+
+    if (!/^\d{2}-\d{2}-\d{4}$/.test(date)) {
+      return res.status(400).json({
+        error: 'Invalid date format. Use DD-MM-YYYY'
+      });
     }
-    
+
+    const detections = await getDetectionsByDate(date);
+
     res.json({
-      date: date || 'today',
+      date,
       count: detections.length,
-      detections: detections
+      detections
     });
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch detections' });
   }
 });
+
 
 app.get('/api/stats', async (req, res) => {
   try {
@@ -208,14 +234,27 @@ app.get('/api/stats', async (req, res) => {
 // Additional endpoint to get available dates
 app.get('/api/available-dates', async (req, res) => {
   try {
+    const today = new Date()
+      .toLocaleDateString('id-ID')
+      .split('/')
+      .reverse()
+      .join('-'); // DD-MM-YYYY
+
     const [rows] = await dbPool.execute(
-      'SELECT DISTINCT DATE(time) as date FROM log_detection ORDER BY date DESC LIMIT 30'
+      `SELECT DISTINCT tanggal
+       FROM log_detection
+       WHERE tanggal != ?
+       ORDER BY STR_TO_DATE(tanggal, '%d-%m-%Y') DESC`
+      , [today]
     );
-    res.json(rows.map(row => row.date));
+
+    res.json(rows.map(r => r.tanggal));
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch available dates' });
+    res.status(500).json({ error: 'Failed to fetch dates' });
   }
 });
+
+
 
 console.log(`🚀 Node.js server listening on port ${PORT} for React clients`);
 

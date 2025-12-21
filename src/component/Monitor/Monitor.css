@@ -3,8 +3,8 @@
   display: grid;
   grid-template-columns: 2fr 1fr;
   gap: 20px;
-  padding: 20px 80px;
-  margin-top: 100px;
+  padding: 0 80px;
+  margin-top: 90px;
   margin-bottom: 40px;
   cursor: default;
 }
@@ -12,50 +12,48 @@
 /* ==== LEFT SIDE - VIDEO FEED ==== */
 .monitor-left {
   display: flex;
+  align-items: center;
   flex-direction: column;
   gap: 20px;
-  padding: 24px 40px;
-  border-radius: 12px;
-  background-color: #fff;
-  border: 1px solid #e0e0e0;
+  padding: 0 20px;
 }
 
 .monitor-left-title {
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   color: #1E141E;
 }
 
 .monitor-left-title h1 {
   font-size: 24px;
-  margin-bottom: 12px;
   color: #1E141E;
-}
-
-.connection-status {
-  margin-top: 8px;
+  margin-right: 20px;
 }
 
 .status-indicator {
-  padding: 6px 12px;
+  padding: 4px 12px;
   border-radius: 20px;
-  font-size: 14px;
-  font-weight: 500;
+  font-size: 12px;
 }
 
 .status-indicator.connected {
-  background-color: #e8f5e8;
+  background-color: #cbedcb;
   color: #1B896E;
+  border: 1px solid #196c57;
 }
 
 .status-indicator.connecting {
   background-color: #fff3cd;
   color: #856404;
+  border: 1px solid #4e3c06;
 }
 
 .status-indicator.disconnected,
 .status-indicator.connection-error {
   background-color: #f8d7da;
   color: #721c24;
+  border: 1px solid #44080e;
 }
 
 .monitor-left-content {
@@ -68,7 +66,7 @@
 
 .video-grid-container {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2fr, 1fr);
   gap: 12px;
 }
 
@@ -76,11 +74,10 @@
   position: relative;
   border-radius: 8px;
   overflow: hidden;
-  /* box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); */
 }
 
 .camera-feed {
-  width: 100%;
+  width: 95%;
   height: auto;
   border-radius: 8px;
   border: 2px solid #ddd;
@@ -94,7 +91,7 @@
 .camera-label {
   position: absolute;
   bottom: 8px;
-  left: 8px;
+  left: 40px;
   background-color: rgba(30, 20, 30, 0.8);
   color: white;
   padding: 4px 8px;
@@ -109,7 +106,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 300px;
+  height: 400px;
   background-color: #f5f5f5;
   border: 2px dashed #ccc;
   border-radius: 8px;
@@ -158,9 +155,15 @@
   font-size: 20px;
 }
 
+.monitoring-right-subtitle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
 .refresh-btn {
   padding: 8px 16px;
-  background: linear-gradient(#00E4E8, #1B896E);
+  background-color:#1B896E;
   color: white;
   border: none;
   border-radius: 8px;
@@ -181,13 +184,13 @@
 .monitor-right-content
 {
   display: grid;
-  grid-template-columns: 2.5fr 1fr;
+  grid-template-columns: 2fr 1fr;
   justify-content: space-between;
   gap: 10px;
 }
 .monitor-right-content-status {
-  padding: 16px;
-  background-color: #f8f9fa;
+  padding: 12px;
+  background-color: #f2fcf3;
   border-radius: 8px;
   margin-bottom: 20px;
   border-left: 4px solid #1B896E;
@@ -198,9 +201,8 @@
 }
 
 .monitor-right-content-status h4 {
-  margin: 0 0 12px 0;
   color: #1E141E;
-  font-size: 16px;
+  font-size: 14px;
 }
 
 .current-detection {
@@ -214,23 +216,21 @@
 }
 
 .detection-count strong {
-  font-size: 22px;
+  font-size: 28px;
   color: #1B896E;
   font-weight: 700;
-  margin: 0 12px 0 28px;
+  margin: 0 12px 0 20px;
 }
 
 .last-update {
   font-size: 14px;
   color: #666;
-  margin: 0;
 }
 
 .waiting-data {
   text-align: center;
   color: #999;
   font-style: italic;
-  margin: 0;
 }
 
 /* ==== DETECTION STATISTICS ==== */
@@ -247,11 +247,74 @@
   color: #1E141E;
   font-size: 16px;
 }
-/* 
-.stats-grid {
+
+.date-picker-controls {
   display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.today-btn {
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  background: #f5f5f5;
+  cursor: pointer;
+}
+
+.today-btn.active {
+  background: #2e7d32;
+  color: white;
+  border-color: #2e7d32;
+}
+
+.custom-date-picker {
+  position: relative;
+  display: grid;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  grid-template-columns: 1fr 0.1fr;
+}
+
+
+.date-display-input {
+  display: flex;
+  align-items: center;
   justify-content: center;
-} */
+  padding: 10px 12px;
+  font-size: 16px;
+  border: 2px solid #999;
+  border-radius: 6px;
+  cursor: pointer;
+  background-color: #fff;
+}
+
+.calendar-icon {
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-size: 24px;
+  cursor: pointer;
+}
+
+.custom-date-picker:hover .date-display-input,
+.custom-date-picker:hover .calendar-icon {
+  border-color: #2e7d32;
+}
+
+
+.date-input {
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+}
+
+.selected-date-info {
+  margin-top: 6px;
+  font-size: 0.85rem;
+  color: #555;
+}
+
 
 .stat-item {
     display: flex;
@@ -260,18 +323,17 @@
     justify-content: center;
     text-align: center;
     padding: 12px;
-    background-color: white;
     border-radius: 8px;
     border: 1px solid #e0e0e0;
     margin-bottom: 20px;
-    background-color: #f8f9fa;
+    background-color: #fff8ef;
 }
 
 .stat-number {
   display: block;
   font-size: 28px;
   font-weight: 700;
-  color: #1B896E;
+  color: #893e1b;
   line-height: 1;
 }
 
@@ -352,13 +414,13 @@
 
 /* ==== DETECTION HISTORY ==== */
 .detection-history h4 {
-  margin: 0 0 12px 0;
-  color: #1E141E;
-  font-size: 16px;
+  margin: 0 0 8px 0;
+  color: #3e3e3e;
+  font-size: 14px;
 }
 
 .history-container {
-  max-height: 350px;
+  max-height: 200px;
   overflow-y: auto;
   border: 1px solid #e0e0e0;
   border-radius: 8px;
@@ -391,8 +453,8 @@
 }
 
 .history-time {
-  font-size: 12px;
-  color: #666;
+  font-size: 14px;
+  color: #969696;
   white-space: nowrap;
 }
 
@@ -438,16 +500,17 @@
 
 /* Date Picker Styles */
 .date-picker-section {
-  margin: 20px 0;
+  margin: 10px 0 20px;
   background: rgba(255, 255, 255, 0.1);
   border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  /* border: 1px solid rgba(255, 255, 255, 0.2); */
 }
 
 .date-picker-section label {
   display: block;
   margin-bottom: 8px;
   font-weight: 600;
+  font-size: 14px;
 }
 
 .date-select {
@@ -455,21 +518,13 @@
   padding: 8px 12px;
   border: 1px solid #ccc;
   border-radius: 4px;
-  /* background: white; */
-  font-size: 14px;
-  /* margin-bottom: 10px; */
+  font-size: 16px;
   color: #1E141E;
 }
 
 .date-select:disabled {
   opacity: 0.6;
   cursor: not-allowed;
-}
-
-.selected-date-info {
-  font-size: 12px;
-  color: #939393;
-  font-style: italic;
 }
 
 .loading-history {
@@ -484,4 +539,12 @@
 .loading-history .loading-spinner {
   width: 20px;
   height: 20px;
+}
+
+.hidden-date-input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  height: 0;
+  width: 0;
 }

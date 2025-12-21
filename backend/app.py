@@ -13,6 +13,19 @@ from mysql.connector import Error
 app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*")
 
+previous_bird_count = 0
+group_start_time = None
+last_detected_time = None
+last_bird_count = 0
+
+pending_save_time = None
+pending_save_count = None
+
+REDUCTION_CONFIRM_SECONDS = 5
+LOST_TOLERANCE_SECONDS = 2
+
+
+
 # Database configuration
 DB_CONFIG = {
     'host': 'localhost',
@@ -24,9 +37,20 @@ DB_CONFIG = {
 # Initialize detection components
 cascade_path = os.path.join(os.path.dirname(__file__), 'face_ref.xml')
 face_cascade = cv2.CascadeClassifier(cascade_path)
-camera = cv2.VideoCapture(0)
+camera = cv2.VideoCapture(0, cv2.CAP_DSHOW)
 
-last_logged_time = 0
+detection_start_time = None
+max_bird_count = 0
+
+MIN_DETECTION_SECONDS = 30
+
+def format_duration(seconds):
+    seconds = int(seconds)
+    h = seconds // 3600
+    m = (seconds % 3600) // 60
+    s = seconds % 60
+    return f"{h:02d}:{m:02d}:{s:02d}"
+
 
 def init_database():
     """Initialize database and create table if not exists"""
@@ -42,9 +66,12 @@ def init_database():
         create_table_query = """
         CREATE TABLE IF NOT EXISTS log_detection (
             id INT AUTO_INCREMENT PRIMARY KEY,
-            birds INT NOT NULL,
-            time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
+            jumlah_burung INT NOT NULL,
+            lama_terdeteksi TIME NOT NULL,
+            waktu TIME NOT NULL,
+            tanggal VARCHAR(10) NOT NULL
+        );
+
         """
         cursor.execute(create_table_query)
         connection.commit()
@@ -57,76 +84,150 @@ def init_database():
             cursor.close()
             connection.close()
 
-def save_detection_to_db(bird_count):
-    """Save detection result to database"""
+def save_detection_to_db(jumlah_burung, duration_seconds, end_time):
     try:
         connection = mysql.connector.connect(**DB_CONFIG)
         cursor = connection.cursor()
-        
-        insert_query = """
-        INSERT INTO log_detection (birds, time) 
-        VALUES (%s, %s)
+
+        lama_terdeteksi = str(datetime.timedelta(seconds=int(duration_seconds)))
+        waktu = end_time.strftime("%H:%M:%S")
+        tanggal = end_time.strftime("%d-%m-%Y")
+
+        query = """
+        INSERT INTO log_detection 
+        (jumlah_burung, lama_terdeteksi, waktu, tanggal)
+        VALUES (%s, %s, %s, %s)
         """
-        current_time = datetime.datetime.now()
-        cursor.execute(insert_query, (bird_count, current_time))
+        cursor.execute(query, (
+            jumlah_burung,
+            lama_terdeteksi,
+            waktu,
+            tanggal
+        ))
         connection.commit()
-        
-        print(f"✅ Detection saved to database: {bird_count} objects at {current_time}")
-        return True
-        
+
+        print(f"✅ Saved: {jumlah_burung} burung | {lama_terdeteksi}")
+
+        # 🔥 KIRIM EVENT KE NODE
+        socketio.emit("log", {
+            "jumlah_burung": jumlah_burung,
+            "lama_terdeteksi": lama_terdeteksi,
+            "waktu": waktu,
+            "tanggal": tanggal
+        })
+
     except Error as e:
-        print(f"❌ Error saving to database: {e}")
-        return False
+        print(f"❌ DB Error: {e}")
+
     finally:
         if connection.is_connected():
             cursor.close()
             connection.close()
 
+
 def detect_and_stream():
     """Main detection and streaming function"""
-    global last_logged_time
-    
+
+    global group_start_time, last_bird_count, last_detected_time
+    global pending_save_time, pending_save_count
+
     while True:
         ret, frame = camera.read()
         if not ret:
             continue
 
-        # Convert to grayscale for detection
+        frame = cv2.flip(frame, 1)
+
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         faces = face_cascade.detectMultiScale(gray, 1.1, 5)
 
-        # Draw bounding boxes
+        bird_count = len(faces)
+        now = datetime.datetime.now()
+
+        active_duration = 0
+        if group_start_time:
+            active_duration = (now - group_start_time).total_seconds()
+
+        # === DRAW BOX & TIMER ===
         for (x, y, w, h) in faces:
             cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
-        
-        # Encode frame to base64 for streaming
+
+            if group_start_time:
+                label = f"Objek: {bird_count} | {format_duration(active_duration)}"
+            else:
+                label = f"Objek: {bird_count}"
+
+            cv2.putText(
+                frame,
+                label,
+                (x, y - 10),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.5,
+                (0, 255, 0),
+                2
+            )
+
+        # === STREAM FRAME ===
         ret, buffer = cv2.imencode('.jpg', frame)
-        if not ret:
-            continue
-        
-        frame_as_text = base64.b64encode(buffer).decode('utf-8')
-        
-        # Send video frame to server
-        socketio.emit('video_frame', frame_as_text)
+        if ret:
+            socketio.emit('video_frame', base64.b64encode(buffer).decode())
 
-        # Process detection results
-        bird_count = len(faces)  # Using faces as bird detection for demo
-        now_str = datetime.datetime.now().strftime("%H:%M:%S")
-        realtime_data = {"jumlah": bird_count, "waktu": now_str}
-        
-        # Send real-time detection data
-        # Kirim data deteksi real-time
-        socketio.emit("deteksi", realtime_data)
+        # === LOGIC EVENT ===
+        if bird_count > 0:
+            last_detected_time = now
 
-        # Simpan ke database jika ada objek terdeteksi (setiap 60 detik)
-        now_epoch = time.time()
-        if bird_count > 0 and now_epoch - last_logged_time >= 300:
-            if save_detection_to_db(bird_count):
-                socketio.emit("log", realtime_data)
-                last_logged_time = now_epoch
+            if group_start_time is None:
+                group_start_time = now
+                last_bird_count = bird_count
+                pending_save_time = None
 
-        # Sesuaikan nilai ini untuk FPS yang berbeda. 0.033 untuk ~30 FPS
-        socketio.sleep(1) 
+            elif bird_count > last_bird_count:
+                last_bird_count = bird_count
+                pending_save_time = None
+
+            elif bird_count < last_bird_count:
+                if pending_save_time is None:
+                    pending_save_time = now
+                    pending_save_count = last_bird_count
+
+                elif (now - pending_save_time).total_seconds() >= REDUCTION_CONFIRM_SECONDS:
+                    duration = (pending_save_time - group_start_time).total_seconds()
+
+                    if duration >= MIN_DETECTION_SECONDS:
+                        save_detection_to_db(
+                            pending_save_count,
+                            duration,
+                            pending_save_time
+                        )
+
+                    group_start_time = now
+                    last_bird_count = bird_count
+                    pending_save_time = None
+            else:
+                pending_save_time = None
+
+        else:
+            if last_detected_time and (now - last_detected_time).total_seconds() >= REDUCTION_CONFIRM_SECONDS:
+                if group_start_time and last_bird_count > 0:
+                    duration = (last_detected_time - group_start_time).total_seconds()
+                    if duration >= MIN_DETECTION_SECONDS:
+                        save_detection_to_db(
+                            last_bird_count,
+                            duration,
+                            last_detected_time
+                        )
+
+                group_start_time = None
+                last_bird_count = 0
+                last_detected_time = None
+                pending_save_time = None
+
+        socketio.emit("deteksi", {
+            "jumlah": bird_count,
+            "waktu": now.strftime("%H:%M:%S")
+        })
+
+        socketio.sleep(0.01)
 
 @socketio.on('connect')
 def connect():
