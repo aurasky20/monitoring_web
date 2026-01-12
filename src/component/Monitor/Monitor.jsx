@@ -120,8 +120,10 @@ const Monitor = () => {
 
     // ⬇️ DB UPDATE FROM PYTHON
     socket.on("database_update", (data) => {
-      setDetectionHistory(mapDetections(data.detections));
-      setDetectionStats(data.stats);
+      if (data.date === selectedDate) {
+        setDetectionHistory(mapDetections(data.detections));
+        setDetectionStats(data.stats);
+      }
     });
 
     return () => socket.disconnect();

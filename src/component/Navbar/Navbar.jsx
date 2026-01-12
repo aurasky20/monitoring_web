@@ -17,8 +17,8 @@ const Navbar = () => {
       },
       {
         root: null,
-  rootMargin: "-80px 0px 0px 0px", // Offset untuk navbar height
-  threshold: 0.3,
+        rootMargin: "-80px 0px 0px 0px", // Offset untuk navbar height
+        threshold: 0.3,
       }
     );
 
@@ -34,7 +34,7 @@ const Navbar = () => {
       <div className="navbar-container">
         <h1>CMON</h1>
         <ul className="navbar-menu">
-          <li className="navbar-item">
+          {/* <li className="navbar-item">
             <a
               href="#home"
               className={menu === "home" ? "active" : ""}
@@ -42,8 +42,8 @@ const Navbar = () => {
             >
               Home
             </a>
-          </li>
-          <li className="navbar-item">
+          </li> */}
+          {/* <li className="navbar-item">
             <a
               href="#rules"
               className={menu === "rules" ? "active" : ""}
@@ -51,8 +51,8 @@ const Navbar = () => {
             >
                 Rules
             </a>
-          </li>
-          <li className="navbar-item">
+          </li> */}
+          {/* <li className="navbar-item">
             <a
               href="#contact"
               className={menu === "contact" ? "active" : ""}
@@ -60,10 +60,10 @@ const Navbar = () => {
             >
               Contact
             </a>
-          </li>
-          <li className="navbar-item">
+          </li> */}
+          {/* <li className="navbar-item">
             <div className="nav-connect">Logout</div>
-          </li>
+          </li> */}
         </ul>
       </div>
     </div>

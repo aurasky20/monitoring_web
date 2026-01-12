@@ -11,7 +11,7 @@ function App() {
       <Navbar />
       <Monitor />
       {/* <Rules /> */}
-      <Contact />
+      {/* <Contact /> */}
     </>
   )
 }

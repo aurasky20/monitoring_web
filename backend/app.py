@@ -8,6 +8,7 @@ import os
 import time
 import base64
 import mysql.connector
+from ultralytics import YOLO
 from mysql.connector import Error
 
 app = Flask(__name__)
@@ -35,14 +36,14 @@ DB_CONFIG = {
 }
 
 # Initialize detection components
-cascade_path = os.path.join(os.path.dirname(__file__), 'face_ref.xml')
-face_cascade = cv2.CascadeClassifier(cascade_path)
-camera = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+cascade_path = os.path.join(os.path.dirname(__file__), 'best.pt')
+model = YOLO("best.pt") 
+camera = cv2.VideoCapture(0)
 
 detection_start_time = None
 max_bird_count = 0
 
-MIN_DETECTION_SECONDS = 30
+MIN_DETECTION_SECONDS = 10
 
 def format_duration(seconds):
     seconds = int(seconds)
@@ -138,10 +139,18 @@ def detect_and_stream():
 
         frame = cv2.flip(frame, 1)
 
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        faces = face_cascade.detectMultiScale(gray, 1.1, 5)
+        results = model(frame, conf=0.5, verbose=False)
 
-        bird_count = len(faces)
+        detections = results[0].boxes
+
+        bird_boxes = []
+        for box in detections:
+            cls_id = int(box.cls[0])
+            if cls_id == 0:  # 0 = birds
+                bird_boxes.append(box)
+
+        bird_count = len(bird_boxes)
+
         now = datetime.datetime.now()
 
         active_duration = 0
@@ -149,21 +158,28 @@ def detect_and_stream():
             active_duration = (now - group_start_time).total_seconds()
 
         # === DRAW BOX & TIMER ===
-        for (x, y, w, h) in faces:
-            cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
+        for box in bird_boxes:
+            x1, y1, x2, y2 = map(int, box.xyxy[0])
+            conf = float(box.conf[0])
 
-            if group_start_time:
-                label = f"Objek: {bird_count} | {format_duration(active_duration)}"
-            else:
+            cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
+
+            if group_start_time: 
+                if bird_count <= 1:
+                    label = f"{bird_count} bird | {format_duration(active_duration)}"
+                else:
+                    label = f"{bird_count} birds | {format_duration(active_duration)}"
+            else: 
                 label = f"Objek: {bird_count}"
 
+            # label = f"Bird {conf:.2f}"
             cv2.putText(
                 frame,
                 label,
-                (x, y - 10),
+                (x1, y1 - 10),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.5,
-                (0, 255, 0),
+                (0, 0, 255),
                 2
             )
 
